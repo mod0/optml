@@ -3,7 +3,6 @@ import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 import math
-import random
 import traceback
 
 class RollingAverage:
@@ -133,16 +132,6 @@ def rk45(odefun, tspan, yini, options):
         # safety factor
         fac = 0.8
 
-        # number of variables to observe
-        if 'nobservations' in options:
-            nobs = options['nobservations']
-        else:
-            nobs = 10
-            
-        # create training mask by randomly selecting
-        # variables to observe
-        mask = random.sample(xrange(n), min(n, nobs))
-
         # Get hold of the model
         # expect a function model.train(X, y)
         # and model.predict(X)
@@ -150,6 +139,19 @@ def rk45(odefun, tspan, yini, options):
             model = options['model']
         else:
             raise "Need an online model with train and predict methods."
+        
+        # number of variables to observe
+        if 'nobservations' in options:
+            nobs = options['nobservations']
+        else:
+            nobs = max(10, int(0.01 * n))
+            
+        # create training mask by randomly selecting
+        # variables to observe
+        if 'mask' in options:
+            mask = options['mask']
+        else:
+            mask = np.round(np.linspace(0, n - 1, min(n, nobs)))
 
         # Get hold of validation window size
         # window and success threshold
@@ -160,7 +162,7 @@ def rk45(odefun, tspan, yini, options):
 
         # create a validation window
         # push one whenever prediction turned out to be
-        # true
+        # true otherwise push zero
         validation_window = RollingAverage(nvalidation)
 
         # only if the validation window has atleast
@@ -173,10 +175,10 @@ def rk45(odefun, tspan, yini, options):
 
         # a constant by which to shrink stepsize if next step
         # is predicted to be rejected.
-        if 'shrinkconstant' in options:
-            shrinkconstant = options['shrinkconstant']
+        if 'shrinkfactor' in options:
+            shrinkfactor = options['shrinkfactor']
         else:
-            shrinkconstant = 0.8
+            shrinkfactor = 0.5
 
         # maxtimes to shrink stepsize if next step
         # is predicted to be rejected.
@@ -184,7 +186,6 @@ def rk45(odefun, tspan, yini, options):
             maxshrinks = options['maxshrinks']
         else:
             maxshrinks = 5
-
 
         # Store nsamples window of past features and data
         if 'nsamples' in options:
@@ -300,7 +301,7 @@ def rk45(odefun, tspan, yini, options):
                         print "Using Model for Prediction"
                     if not acceptnext:
                         for j in xrange(maxshrinks):
-                            h *= shrinkconstant
+                            h *= shrinkfactor
                             featureX[0, -1] = h
                             acceptnext = (model.predict(featureX) == 1)
 
@@ -355,7 +356,7 @@ def rk45(odefun, tspan, yini, options):
                         print "Using Model for Prediction"
                     if not acceptnext:
                         for j in xrange(maxshrinks):
-                            h *= shrinkconstant
+                            h *= shrinkfactor
                             featureX[0, -1] = h
                             acceptnext = (model.predict(featureX) == 1)
 

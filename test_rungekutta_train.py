@@ -18,7 +18,7 @@ class SGDModel:
 
 class PerceptronModel:
     def __init__(self):
-        self.model = linear_model.SGDClassifier(warm_start=True)
+        self.model = linear_model.Perceptron(warm_start=True)
 
     def train(self, X, y):
         self.model.fit(X, y)
@@ -48,13 +48,14 @@ if __name__ == "__main__":
     
     # Allen Cahn
     import allen_cahn as ac
-    model = ac.InitializeModel()
+    model                     = ac.InitializeModel()
     odefun                    = lambda y: model['rhsFun'](y)
     options                   = {}
     options['abstol']         = 1.0e-8
     options['reltol']         = 1.0e-8 
     options['numcheckpoints'] = 1000
     options['nobservations']  = 10
+    options['model']          = SGDModel()
     tspan                     = [0.0, 0.3]
     y0                        = model['y0']
 

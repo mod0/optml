@@ -111,7 +111,7 @@ def rk45(odefun, tspan, yini, options):
         if 'h' in options:
             h = options['h']
         else:
-            h = 1.0e-6
+            h = 1.0e-3
 
         # get the machine epsilon
         eps = np.spacing(1)
@@ -190,20 +190,21 @@ def rk45(odefun, tspan, yini, options):
         if 'nsamples' in options:
             nsamples = options['nsamples']
         else:
-            nsamples = 50
+            nsamples = 10
 
         # Create feature variable with nsamples
         # and additional feature for step size
+        featureX    = np.zeros(len(mask) + 1)
 
         # For accept signal
         signalYAcc  = np.zeros(nsamples)
-        featureXAcc = np.zeros((nsamples, size(mask) + 1))
+        featureXAcc = np.zeros((nsamples, len(mask) + 1))
         countAcc    = 0
         indexAcc    = 0
 
         # For reject signal
         signalYRej  = np.zeros(nsamples)
-        featureXRej = np.zeros((nsamples, size(mask) + 1))
+        featureXRej = np.zeros((nsamples, len(mask) + 1))
         countRej    = 0
         indexRej    = 0
 
@@ -255,7 +256,12 @@ def rk45(odefun, tspan, yini, options):
                 # Only train if min num of samples are met
                 # and atleast one training signal of each class
                 if countAcc > 0 and countRej > 0 and (countAcc + countRej) > minsamples:
-                    model.train(featureX, signalY)
+                    fX = np.vstack((featureXAcc[:countAcc,:], featureXRej[:countRej, :]))
+                    sY = np.hstack((signalYAcc[:countAcc], signalYRej[:countRej]))
+
+                    print "Training Model"
+                    
+                    model.train(fX, sY)
                 
                 # now store the final output as next step ini
                 Y[:, 0] = yfin
@@ -275,22 +281,30 @@ def rk45(odefun, tspan, yini, options):
                 # compute the new h for next timestep
                 h = h * min(1.5, max(0.2, fac * (1/err)**(1/5)))
 
-                # construct new feature with new h and Y value
-                featureX[:-1] = Y[mask, 0]
-                featureX[-1]  = h
+                # Only predict if you have already trained
+                if countAcc > 0 and countRej > 0 and (countAcc + countRej) > minsamples:
+                    # construct new feature with new h and Y value
+                    featureX[:-1] = Y[mask, 0]
+                    featureX[-1]  = h
+
+                    print "Validating Model"
                     
-                # prediction and validation
-                acceptnext = (model.predict(featureX) == 1)
+                    # prediction and validation
+                    print featureX.shape
+                    sY         = model.predict(featureX)
+                    print sY
+                    acceptnext = (sY == 1)
 
                 # model is somewhat trustworthy
                 # if next step won't be accepted,
                 # shrink stepsize by shrink constant
                 # test for step acceptance
                 if validation_window.mean() > valthreshold:
+                    print "Using Model for Prediction"
                     if not acceptnext:
                         for j in xrange(maxshrinks):
                             h *= shrinkconstant
-                            feature[-1] = h
+                            featureX[-1] = h
                             acceptnext = (model.predict(featureX) == 1)
 
                             if acceptnext:
@@ -303,10 +317,24 @@ def rk45(odefun, tspan, yini, options):
                     validation_window.push(0)
                     
                 # train
-                signalY       = 0            # reject signal
-                featureX[:-1] = Y[mask, 0]
-                featureX[-1]  = h
-                model.train(featureX, signalY)
+                # append reject signal
+                featureXRej[indexRej, :-1] = Y[mask, 0]
+                featureXRej[indexRej, -1]  = h
+                signalYRej[indexRej]       = 0            # reject signal
+                countRej                  += 1
+                indexRej                  += 1
+                countRej                   = min(nsamples, countRej)
+                indexRej                  %= nsamples     # replace oldest pair
+
+                # Only train if min num of samples are met
+                # and atleast one training signal of each class
+                if countAcc > 0 and countRej > 0 and (countAcc + countRej) > minsamples:
+                    fX = np.vstack((featureXAcc[:countAcc,:], featureXRej[:countRej, :]))
+                    sY = np.hstack((signalYAcc[:countAcc], signalYRej[:countRej]))
+
+                    print "Training Model"
+                    
+                    model.train(fX, sY)
 
                 # increment the count of rejected steps
                 options['nrej'] += 1
@@ -314,20 +342,26 @@ def rk45(odefun, tspan, yini, options):
                 # compute the new h for next timestep
                 h = h * min(1.0, max(0.2, fac * (1/err)**(1/5)))
 
-                # update new h
-                featureX[-1] = h
-                
-                # prediction and validation
-                acceptnext = (model.predict(featureX) == 1)
+                if countAcc > 0 and countRej > 0 and (countAcc + countRej) > minsamples:
+                    # construct new feature with new h 
+                    featureX[-1]  = h
 
+                    print "Validating Model"
+                    
+                    # prediction and validation
+                    sY         = model.predict(featureX)
+                    print sY
+                    acceptnext = (sY == 1)
+                
                 # model is somewhat trustworthy
                 # if next step won't be accepted,
                 # shrink stepsize by shrink constant
                 if validation_window.mean() > valthreshold:
+                    print "Using Model for Prediction"
                     if not acceptnext:
                         for j in xrange(maxshrinks):
                             h *= shrinkconstant
-                            feature[-1] = h
+                            featureX[-1] = h
                             acceptnext = (model.predict(featureX) == 1)
 
                             if acceptnext:

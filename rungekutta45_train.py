@@ -194,7 +194,7 @@ def rk45(odefun, tspan, yini, options):
 
         # Create feature variable with nsamples
         # and additional feature for step size
-        featureX    = np.zeros(len(mask) + 1)
+        featureX    = np.zeros((1, len(mask) + 1))
 
         # For accept signal
         signalYAcc  = np.zeros(nsamples)
@@ -258,9 +258,8 @@ def rk45(odefun, tspan, yini, options):
                 if countAcc > 0 and countRej > 0 and (countAcc + countRej) > minsamples:
                     fX = np.vstack((featureXAcc[:countAcc,:], featureXRej[:countRej, :]))
                     sY = np.hstack((signalYAcc[:countAcc], signalYRej[:countRej]))
-
-                    print "Training Model"
-                    
+                    if __debug__:
+                        print "Training Model"                   
                     model.train(fX, sY)
                 
                 # now store the final output as next step ini
@@ -284,15 +283,12 @@ def rk45(odefun, tspan, yini, options):
                 # Only predict if you have already trained
                 if countAcc > 0 and countRej > 0 and (countAcc + countRej) > minsamples:
                     # construct new feature with new h and Y value
-                    featureX[:-1] = Y[mask, 0]
-                    featureX[-1]  = h
-
-                    print "Validating Model"
-                    
+                    featureX[0,:-1] = Y[mask, 0]
+                    featureX[0, -1] = h
+                    if __debug__:
+                        print "Validating Model"                   
                     # prediction and validation
-                    print featureX.shape
                     sY         = model.predict(featureX)
-                    print sY
                     acceptnext = (sY == 1)
 
                 # model is somewhat trustworthy
@@ -300,11 +296,12 @@ def rk45(odefun, tspan, yini, options):
                 # shrink stepsize by shrink constant
                 # test for step acceptance
                 if validation_window.mean() > valthreshold:
-                    print "Using Model for Prediction"
+                    if __debug__:
+                        print "Using Model for Prediction"
                     if not acceptnext:
                         for j in xrange(maxshrinks):
                             h *= shrinkconstant
-                            featureX[-1] = h
+                            featureX[0, -1] = h
                             acceptnext = (model.predict(featureX) == 1)
 
                             if acceptnext:
@@ -331,9 +328,8 @@ def rk45(odefun, tspan, yini, options):
                 if countAcc > 0 and countRej > 0 and (countAcc + countRej) > minsamples:
                     fX = np.vstack((featureXAcc[:countAcc,:], featureXRej[:countRej, :]))
                     sY = np.hstack((signalYAcc[:countAcc], signalYRej[:countRej]))
-
-                    print "Training Model"
-                    
+                    if __debug__:
+                        print "Training Model"                  
                     model.train(fX, sY)
 
                 # increment the count of rejected steps
@@ -344,24 +340,23 @@ def rk45(odefun, tspan, yini, options):
 
                 if countAcc > 0 and countRej > 0 and (countAcc + countRej) > minsamples:
                     # construct new feature with new h 
-                    featureX[-1]  = h
-
-                    print "Validating Model"
-                    
+                    featureX[0, -1]  = h
+                    if __debug__:
+                        print "Validating Model"
                     # prediction and validation
                     sY         = model.predict(featureX)
-                    print sY
                     acceptnext = (sY == 1)
                 
                 # model is somewhat trustworthy
                 # if next step won't be accepted,
                 # shrink stepsize by shrink constant
                 if validation_window.mean() > valthreshold:
-                    print "Using Model for Prediction"
+                    if __debug__:
+                        print "Using Model for Prediction"
                     if not acceptnext:
                         for j in xrange(maxshrinks):
                             h *= shrinkconstant
-                            featureX[-1] = h
+                            featureX[0, -1] = h
                             acceptnext = (model.predict(featureX) == 1)
 
                             if acceptnext:

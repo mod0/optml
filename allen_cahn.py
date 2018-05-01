@@ -13,8 +13,8 @@ def InitializeModel():
     mygamma = 10
 
     # Grid size in x and y
-    M = 64
-    N = 64
+    M = 128
+    N = 128
 
     # Suggested integration information.
     Tspan = np.array([0, 0.075])

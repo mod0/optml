@@ -14,7 +14,7 @@ class SGDModel:
         self.model.fit(X, y)
 
     def predict(self, X):
-        return self.predict(X)
+        return self.model.predict(X)
 
 class PerceptronModel:
     def __init__(self):
@@ -24,7 +24,7 @@ class PerceptronModel:
         self.model.fit(X, y)
 
     def predict(self, X):
-        return self.predict(X)
+        return self.model.predict(X)
     
 if __name__ == "__main__":
 

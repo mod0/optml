@@ -54,8 +54,13 @@ if __name__ == "__main__":
     options['abstol']         = 1.0e-8
     options['reltol']         = 1.0e-8 
     options['numcheckpoints'] = 1000
-    options['nobservations']  = 10
-    options['model']          = SGDModel()
+    options['nobservations']  = 25
+    options['model']          = PerceptronModel()
+    options['nvalidation']    = 10
+    options['valthreshold']   = 0.60
+    options['shrinkfactor']   = 0.8
+    options['maxshrinks']     = 5
+    options['nsamples']       = 1
     tspan                     = [0.0, 0.3]
     y0                        = model['y0']
 

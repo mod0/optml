@@ -4,6 +4,8 @@ import matplotlib
 import matplotlib.pyplot as plt
 import math
 import traceback
+import pickle
+from print_progress import print_progress
 
 class RollingAverage:
     def __init__(self, n):
@@ -151,7 +153,8 @@ def rk45(odefun, tspan, yini, options):
         if 'mask' in options:
             mask = options['mask']
         else:
-            mask = np.round(np.linspace(0, n - 1, min(n, nobs)))
+            mask = np.rint(np.linspace(0, n - 1, min(n, nobs))).astype(int)
+            print mask
 
         # Get hold of validation window size
         # window and success threshold
@@ -178,7 +181,7 @@ def rk45(odefun, tspan, yini, options):
         if 'shrinkfactor' in options:
             shrinkfactor = options['shrinkfactor']
         else:
-            shrinkfactor = 0.5
+            shrinkfactor = 0.8
 
         # maxtimes to shrink stepsize if next step
         # is predicted to be rejected.
@@ -213,12 +216,21 @@ def rk45(odefun, tspan, yini, options):
         if 'minsamples' in options:
             minsamples = options['minsamples']
         else:
-            minsamples = 10
+            minsamples = nsamples
             
         # past prediction
         acceptnext = None
+
+        # Step size stats
+        steps      = []
+
+        # Successful model predictions
+        nvalid_models = []
         
         while tf - t - roundoff >= 0:
+            # print a progress bar to track stuff
+            print_progress(int(t/tf*100), 100)
+            
             if tf - t <= 10 * roundoff * abs(tf):
                 break
             
@@ -238,6 +250,9 @@ def rk45(odefun, tspan, yini, options):
 
             # accept or reject
             if err <= 1:
+                # append stepsize for plotting later on
+                steps.append((h, 1))
+                
                 # accept
                 if acceptnext == True:
                     validation_window.push(1)
@@ -297,6 +312,7 @@ def rk45(odefun, tspan, yini, options):
                 # shrink stepsize by shrink constant
                 # test for step acceptance
                 if validation_window.mean() > valthreshold:
+                    nvalid_models.append(1)
                     if __debug__:
                         print "Using Model for Prediction"
                     if not acceptnext:
@@ -306,8 +322,13 @@ def rk45(odefun, tspan, yini, options):
                             acceptnext = (model.predict(featureX) == 1)
 
                             if acceptnext:
-                                break                    
+                                break
+                else:
+                    nvalid_models.append(0)
             else:
+                # append stepsize for plotting later on
+                steps.append((h, 0))
+                
                 # reject
                 if acceptnext == False:
                     validation_window.push(1)
@@ -352,6 +373,7 @@ def rk45(odefun, tspan, yini, options):
                 # if next step won't be accepted,
                 # shrink stepsize by shrink constant
                 if validation_window.mean() > valthreshold:
+                    nvalid_models.append(1)
                     if __debug__:
                         print "Using Model for Prediction"
                     if not acceptnext:
@@ -362,7 +384,14 @@ def rk45(odefun, tspan, yini, options):
 
                             if acceptnext:
                                 break                    
+                else:
+                    nvalid_models.append(0)
 
+        print "\nPickling statistics."
+        
+        # dump statistics
+        pickle.dump({'steps':steps, 'nvalid_models':nvalid_models}, open('stats.p','wb'))
+        
         return trajectory[:, :i]
     except BaseException as e:
         print traceback.print_exc()    

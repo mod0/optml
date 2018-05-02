@@ -33,7 +33,6 @@ if __name__ == "__main__":
     options['abstol']         = 1.0e-8
     options['reltol']         = 1.0e-8 
     options['numcheckpoints'] = 1000
-    options['nobservations']  = 10
     tspan                     = [0.0, 0.3]
     y0                        = model['y0']
 

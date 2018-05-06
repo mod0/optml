@@ -60,7 +60,7 @@ if __name__ == "__main__":
     options['valthreshold']   = 0.60
     options['shrinkfactor']   = 0.8
     options['maxshrinks']     = 5
-    options['nsamples']       = 1
+    options['nsamples']       = 5
     tspan                     = [0.0, 0.3]
     y0                        = model['y0']
 
